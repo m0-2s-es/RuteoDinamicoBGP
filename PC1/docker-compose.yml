@@ -1,13 +1,34 @@
 version: '2.1'
 
 services:
+  b1:
+    build: ./bgp/.
+    volumes:
+      - ./volumes/quagga/b1/zebra.conf:/etc/quagga/zebra.conf:ro
+      - ./volumes/quagga/b1/ospf6d.conf:/etc/quagga/ospf6d.conf:ro
+      - ./volumes/quagga/b1/bgpd.conf:/etc/quagga/bgpd.conf:ro
+      - ./bgp/supervisord.conf:/etc/supervisord.conf:ro
+    image: bgp:20180508
+    privileged: true
+    ports:
+      #admin
+      - 10201:2601
+      #ospf ipv6
+      - 10203:2606
+      #bgp
+      - 10204:2605
+    networks:
+      oam:
+        ipv6_address: 2001::6
+      nr2b2:
+        ipv6_address: 2001:bbbb:bbbb::6
   r1:
-    build: .
+    build: ./ospf/.
     volumes:
       - ./volumes/quagga/r1/zebra.conf:/etc/quagga/zebra.conf:ro
       - ./volumes/quagga/r1/ospfd.conf:/etc/quagga/ospfd.conf:ro
       - ./volumes/quagga/r1/ospf6d.conf:/etc/quagga/ospf6d.conf:ro
-      - ./volumes/supervisord.conf:/etc/supervisord.conf:ro
+      - ./ospf/supervisord.conf:/etc/supervisord.conf:ro
     image: ospf:AS101
     privileged: true
     ports:
@@ -19,11 +40,11 @@ services:
       - 10013:2606
     networks:
       oam:
-        ipv4_address: 192.11.2.1
-        ipv6_address: 2001:0002:0011::1
+        ipv4_address: 192.11.2.3
+        ipv6_address: 2001:0002:0011::3
       nr7:
-        ipv4_address: 192.11.7.1
-        ipv6_address: 2001:0007:0011::1
+        ipv4_address: 192.11.7.3
+        ipv6_address: 2001:0007:0011::3
       nr1:
         ipv4_address: 192.11.1.2
         ipv6_address: 2001:0001:0011::2
@@ -50,7 +71,23 @@ services:
         ipv6_address: 2001:0002:0011::2
       nr5:
         ipv4_address: 192.11.5.2
-        ipv6_address: 2001:0005:0011::1
+        ipv6_address: 2001:0005:0011::3
+
+  nginx:
+
+    image: nginx
+    #volumes:
+    #- ./mysite.template:/etc/nginx/conf.d/mysite.template
+    ports:
+    - "80:80"
+    environment:
+    - NGINX_HOST=test.com
+    - NGINX_PORT=80
+    #command: /bin/bash -c "envsubst < /etc/nginx/conf.d/mysite.template > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"
+    networks:
+      nr7:
+        ipv4_address: 192.11.7.2
+        ipv6_address: 2001:0007:0011::2
 
 networks:
   oam:
@@ -60,7 +97,7 @@ networks:
       driver: default
       config:
         - subnet: 192.11.2.0/24
-        - subnet: 2001:0007:0011::/64
+        - subnet: 2001:0002:0011::/64
   nr1:
     driver: "bridge"
     enable_ipv6: true
@@ -69,14 +106,7 @@ networks:
       config:
         - subnet: 192.11.1.0/24
         - subnet: 2001:0001:0011::/64
-  nr2:
-    driver: "bridge"
-    enable_ipv6: true
-    ipam:
-      driver: default
-      config:
-        - subnet: 192.11.2.0/24
-        - subnet: 2001:0002:0011::/64
+  
   nr5:
     driver: "bridge"
     enable_ipv6: true
